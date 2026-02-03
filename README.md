@@ -14,7 +14,7 @@ A Golang library for extracting article content from HTML pages. Inspired by [Po
 ## Installation
 
 ```bash
-go get github.com/example/article-extractor
+go get github.com/LeadNewswire/article-extractor
 ```
 
 ## Usage
@@ -26,7 +26,7 @@ package main
 
 import (
     "fmt"
-    extractor "github.com/example/article-extractor"
+    extractor "github.com/LeadNewswire/article-extractor"
 )
 
 func main() {
@@ -52,7 +52,7 @@ package main
 import (
     "context"
     "fmt"
-    extractor "github.com/example/article-extractor"
+    extractor "github.com/LeadNewswire/article-extractor"
 )
 
 func main() {

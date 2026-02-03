@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/example/article-extractor/internal/cleaner"
-	"github.com/example/article-extractor/internal/dom"
-	"github.com/example/article-extractor/internal/fetcher"
-	"github.com/example/article-extractor/internal/metadata"
-	"github.com/example/article-extractor/internal/scorer"
+	"github.com/LeadNewswire/article-extractor/internal/cleaner"
+	"github.com/LeadNewswire/article-extractor/internal/dom"
+	"github.com/LeadNewswire/article-extractor/internal/fetcher"
+	"github.com/LeadNewswire/article-extractor/internal/metadata"
+	"github.com/LeadNewswire/article-extractor/internal/scorer"
 )
 
 // Extractor is the main article extraction engine.

@@ -1,4 +1,4 @@
-module github.com/example/article-extractor
+module github.com/LeadNewswire/article-extractor
 
 go 1.24.0
 

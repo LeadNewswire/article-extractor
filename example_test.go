@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	extractor "github.com/example/article-extractor"
+	extractor "github.com/LeadNewswire/article-extractor"
 )
 
 func Example() {

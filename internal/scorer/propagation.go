@@ -1,8 +1,8 @@
 package scorer
 
 import (
-	"github.com/example/article-extractor/internal/dom"
-	"github.com/example/article-extractor/internal/keywords"
+	"github.com/LeadNewswire/article-extractor/internal/dom"
+	"github.com/LeadNewswire/article-extractor/internal/keywords"
 	"github.com/PuerkitoBio/goquery"
 )
 

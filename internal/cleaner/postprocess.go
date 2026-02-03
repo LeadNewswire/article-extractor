@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/example/article-extractor/internal/dom"
+	"github.com/LeadNewswire/article-extractor/internal/dom"
 	"github.com/PuerkitoBio/goquery"
 )
 

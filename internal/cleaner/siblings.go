@@ -1,9 +1,9 @@
 package cleaner
 
 import (
-	"github.com/example/article-extractor/internal/dom"
-	"github.com/example/article-extractor/internal/keywords"
-	"github.com/example/article-extractor/internal/scorer"
+	"github.com/LeadNewswire/article-extractor/internal/dom"
+	"github.com/LeadNewswire/article-extractor/internal/keywords"
+	"github.com/LeadNewswire/article-extractor/internal/scorer"
 	"github.com/PuerkitoBio/goquery"
 )
 
