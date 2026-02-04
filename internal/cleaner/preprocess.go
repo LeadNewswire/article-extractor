@@ -43,6 +43,9 @@ func Preprocess(doc *goquery.Document) {
 	// Remove hidden elements
 	RemoveHiddenElements(doc)
 
+	// Remove known non-content widgets (AI widgets, chatbots, etc.)
+	RemoveKnownWidgets(doc)
+
 	// Strip unlikely candidates
 	StripUnlikelyCandidates(doc)
 
@@ -71,6 +74,24 @@ func RemoveHiddenElements(doc *goquery.Document) {
 
 	// Remove aria-hidden elements
 	doc.Find("[aria-hidden='true']").Remove()
+}
+
+// widgetClassPatterns are CSS class patterns that identify non-content widgets.
+// These are always removed regardless of text content.
+var widgetClassPatterns = regexp.MustCompile(`(?i)(dd-widget|deeperdive|ai-widget|chatbot|ask-ai|genai-|ai-assistant|ai-answer|ai-summary)`)
+
+// RemoveKnownWidgets removes known non-content widgets like AI assistants, chatbots, etc.
+// These are removed unconditionally because they never contain article content.
+func RemoveKnownWidgets(doc *goquery.Document) {
+	doc.Find("*").Each(func(_ int, sel *goquery.Selection) {
+		class := dom.GetAttribute(sel, "class")
+		id := dom.GetAttribute(sel, "id")
+		combined := class + " " + id
+
+		if widgetClassPatterns.MatchString(combined) {
+			sel.Remove()
+		}
+	})
 }
 
 // StripUnlikelyCandidates removes elements unlikely to contain content.

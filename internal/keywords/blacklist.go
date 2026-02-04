@@ -51,6 +51,15 @@ var blacklistKeywords = []string{
 	"tags",
 	"toolbar",
 	"trending",
+	// AI/chatbot widgets
+	"dd-widget",      // DeeperDive widget
+	"deeperdive",     // DeeperDive
+	"ai-widget",      // Generic AI widgets
+	"chatbot",        // Chatbot widgets
+	"ask-ai",         // AI Q&A widgets
+	"genai",          // GenAI widgets
+	"ai-assistant",   // AI assistant widgets
+	"ai-answer",      // AI answer engines
 }
 
 var blacklistPattern *regexp.Regexp
