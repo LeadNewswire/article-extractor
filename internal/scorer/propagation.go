@@ -6,37 +6,38 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// PropagateScores propagates paragraph scores to parent and grandparent elements.
+// PropagateScores propagates paragraph scores up to AncestorMaxDepth ancestor levels.
+// Each level receives geometrically decaying credit: parent gets 100%, grandparent 50%,
+// great-grandparent 25%, and so on. This allows the scorer to recognize content that is
+// scattered across deeply nested sibling containers (e.g., slideshow slides).
 func PropagateScores(doc *goquery.Document, scoreMap *ScoreMap, minParagraphLength int) {
-	// Score all paragraphs and propagate
 	doc.Find("p, pre").Each(func(_ int, sel *goquery.Selection) {
 		paragraphScore := ScoreParagraph(sel, minParagraphLength)
 		if paragraphScore == 0 {
 			return
 		}
 
-		// Get parent and grandparent
-		parent := GetParagraphParent(sel)
-		grandparent := GetParagraphGrandparent(sel)
-
-		// Initialize parent if needed
-		if parent != nil && parent.Length() > 0 {
-			parentScore := scoreMap.Get(parent)
-			if parentScore.ContentScore == 0 {
-				initializeNodeScore(parentScore, parent)
+		// Walk up the ancestor chain with decaying score proportion
+		proportion := 1.0
+		ancestor := sel.Parent()
+		for depth := 0; depth < AncestorMaxDepth; depth++ {
+			if ancestor == nil || ancestor.Length() == 0 {
+				break
 			}
-			// Add full score to parent
-			parentScore.AddScore(paragraphScore * ParentScoreProportion)
-		}
 
-		// Initialize grandparent if needed
-		if grandparent != nil && grandparent.Length() > 0 {
-			grandparentScore := scoreMap.Get(grandparent)
-			if grandparentScore.ContentScore == 0 {
-				initializeNodeScore(grandparentScore, grandparent)
+			tag := dom.GetTagName(ancestor)
+			if tag == "body" || tag == "html" {
+				break
 			}
-			// Add half score to grandparent
-			grandparentScore.AddScore(paragraphScore * GrandparentScoreProportion)
+
+			ns := scoreMap.Get(ancestor)
+			if ns.ContentScore == 0 {
+				initializeNodeScore(ns, ancestor)
+			}
+			ns.AddScore(paragraphScore * proportion)
+
+			proportion *= 0.5 // Geometric decay
+			ancestor = ancestor.Parent()
 		}
 	})
 }

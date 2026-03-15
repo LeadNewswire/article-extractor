@@ -5,7 +5,13 @@ import "regexp"
 // Blacklist keywords that indicate non-content elements.
 // These are patterns that suggest an element is unlikely to be the main content.
 var blacklistKeywords = []string{
-	"ad",
+	"ad-slot",
+	"ad-container",
+	"ad-wrapper",
+	"ad-unit",
+	"ad-banner",
+	"ad_slot",
+	"ad_container",
 	"advertisement",
 	"banner",
 	"breadcrumbs",

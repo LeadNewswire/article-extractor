@@ -129,6 +129,18 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 	contentHTML := cleaner.GetCleanHTML(contentClone)
 	textContent := cleaner.GetCleanText(contentClone)
 
+	// Ancestor expansion: if the extracted content is suspiciously short, walk up the
+	// DOM tree to find a larger container with more paragraph content. This handles
+	// slideshow/listicle layouts where content is scattered across deeply nested sibling
+	// containers that the scorer treats as separate low-scoring candidates.
+	if len(textContent) < minExpandContentLength {
+		expandedHTML, expandedText := e.tryAncestorExpansion(contentSel, baseURL)
+		if len(expandedText) > len(textContent) {
+			contentHTML = expandedHTML
+			textContent = expandedText
+		}
+	}
+
 	// Check content length
 	if len(textContent) < e.config.MinContentLength {
 		return nil, NewExtractionError("validate", baseURL, ErrContentTooShort)
@@ -156,6 +168,66 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 		Score:       topCandidate.GetScore(),
 		Confidence:  confidence,
 	}, nil
+}
+
+// minExpandContentLength is the text length threshold below which ancestor expansion
+// is attempted. Articles shorter than this are likely truncated (e.g., only the intro
+// of a slideshow was captured).
+const minExpandContentLength = 1500
+
+// maxExpansionLevels is how many parent levels to try during ancestor expansion.
+const maxExpansionLevels = 5
+
+// tryAncestorExpansion walks up the DOM from contentSel, cleans each ancestor,
+// and returns the one that produces the most paragraph text.
+func (e *Extractor) tryAncestorExpansion(contentSel *goquery.Selection, baseURL string) (string, string) {
+	bestHTML := ""
+	bestText := ""
+
+	candidate := contentSel
+	for i := 0; i < maxExpansionLevels; i++ {
+		parent := candidate.Parent()
+		if parent.Length() == 0 {
+			break
+		}
+
+		tag := dom.GetTagName(parent)
+		if tag == "body" || tag == "html" {
+			break
+		}
+
+		// Skip parents with high link density (nav bars, footers)
+		linkDensity := dom.CalculateLinkDensity(parent)
+		if linkDensity > 0.3 {
+			candidate = parent
+			continue
+		}
+
+		// Extract text from <p>, <h2>, <h3> children only — this is more robust than
+		// running full Postprocess, which can cascade-remove content in complex layouts.
+		text := extractParagraphText(parent)
+		if len(text) > len(bestText) {
+			bestText = text
+			bestHTML = "" // HTML not available in paragraph-only extraction
+		}
+
+		candidate = parent
+	}
+
+	return bestHTML, bestText
+}
+
+// extractParagraphText extracts text from paragraph and heading elements,
+// producing clean article text without the aggressive cleanup of Postprocess.
+func extractParagraphText(sel *goquery.Selection) string {
+	var parts []string
+	sel.Find("p, h2, h3, h4, li, blockquote").Each(func(_ int, el *goquery.Selection) {
+		text := strings.TrimSpace(el.Text())
+		if len(text) > 20 {
+			parts = append(parts, text)
+		}
+	})
+	return strings.Join(parts, "\n")
 }
 
 // extractLeadImage extracts the main image from the document.

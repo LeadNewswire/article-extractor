@@ -35,11 +35,16 @@ const (
 	// FormAddressPenalty is the score penalty for form and address elements.
 	FormAddressPenalty = -3
 
-	// ParentScoreProportion is the proportion of score passed to parent (100%).
-	ParentScoreProportion = 1.0
-
-	// GrandparentScoreProportion is the proportion of score passed to grandparent (50%).
-	GrandparentScoreProportion = 0.5
+	// AncestorScoreProportions defines the proportion of paragraph score passed
+	// to each ancestor level. Index 0 = parent, 1 = grandparent, etc.
+	// Deeper propagation (beyond the classic parent/grandparent) allows the scorer
+	// to recognize content scattered across deeply nested sibling containers,
+	// such as slideshow slides: div > section > div > div.richtext > p.
+	//
+	// The proportions decay geometrically: 1.0, 0.5, 0.25, 0.125, 0.0625
+	// so distant ancestors receive diminishing credit, preventing body/html
+	// from becoming top candidates on noisy pages.
+	AncestorMaxDepth = 5
 )
 
 // Threshold constants.
