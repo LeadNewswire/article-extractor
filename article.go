@@ -19,6 +19,11 @@ type Article struct {
 	// Author is the article author
 	Author string `json:"author,omitempty"`
 
+	// SiteName is the publishing site / media name (e.g. "The Motley Fool").
+	// Sourced from og:site_name, JSON-LD publisher.name, application-name, or
+	// twitter:site, in that order. Empty when the page exposes no such metadata.
+	SiteName string `json:"siteName,omitempty"`
+
 	// PublishedAt is the article publication date
 	PublishedAt *time.Time `json:"publishedAt,omitempty"`
 

@@ -84,6 +84,7 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 	// Extract metadata first (before preprocessing removes elements)
 	title := metadata.ExtractTitle(doc)
 	author := metadata.ExtractAuthor(doc)
+	siteName := metadata.ExtractSiteName(doc)
 	publishedAt := metadata.ExtractDate(doc)
 	leadImage := e.extractLeadImage(doc, baseURL)
 
@@ -161,6 +162,7 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 		TextContent: textContent,
 		Excerpt:     excerpt,
 		Author:      author,
+		SiteName:    siteName,
 		PublishedAt: publishedAt,
 		LeadImage:   leadImage,
 		URL:         baseURL,
