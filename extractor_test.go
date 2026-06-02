@@ -243,6 +243,52 @@ func TestExtract_LeadImage(t *testing.T) {
 	}
 }
 
+func TestExtract_InlineImages(t *testing.T) {
+	html := `
+<!DOCTYPE html>
+<html>
+<body>
+	<article>
+		<p>Lead-in paragraph with enough text to satisfy the minimum content length requirement so the extractor will accept this article body without complaint.</p>
+		<figure>
+			<img src="https://example.com/photo-a.jpg" alt="A photo">
+			<figcaption>Photographer credit: Jane Doe / Reuters</figcaption>
+		</figure>
+		<p>A middle paragraph that adds enough prose to reach the threshold the scorer cares about. We need a few sentences here, not a single line.</p>
+		<img src="https://example.com/photo-b.jpg" alt="B photo">
+		<em>Caption for photo B, in italic style after the image.</em>
+		<p>Closing paragraph rounding out the article body with additional words so the extraction does not bail early on length checks.</p>
+	</article>
+</body>
+</html>`
+
+	ext := New()
+	article, err := ext.Extract(html)
+	if err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+
+	if len(article.InlineImages) != 2 {
+		t.Fatalf("Expected 2 inline images, got %d", len(article.InlineImages))
+	}
+
+	a := article.InlineImages[0]
+	if a.URL != "https://example.com/photo-a.jpg" {
+		t.Errorf("First image URL wrong: %s", a.URL)
+	}
+	if !strings.Contains(a.Caption, "Jane Doe") {
+		t.Errorf("First image should have figcaption, got: %q", a.Caption)
+	}
+
+	b := article.InlineImages[1]
+	if b.URL != "https://example.com/photo-b.jpg" {
+		t.Errorf("Second image URL wrong: %s", b.URL)
+	}
+	if !strings.Contains(b.Caption, "italic style") {
+		t.Errorf("Second image should pick up italic caption, got: %q", b.Caption)
+	}
+}
+
 func TestExtract_RemovesHiddenElements(t *testing.T) {
 	html := `
 <!DOCTYPE html>

@@ -126,6 +126,11 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 		cleaner.ConvertRelativeURLs(contentClone, baseURL)
 	}
 
+	// Collect inline images BEFORE GetCleanHTML — we need <figure>/<figcaption>
+	// structure preserved so captions can be paired with their images. URLs at
+	// this point are already absolute (ConvertRelativeURLs ran above).
+	inlineImages := extractInlineImages(contentClone)
+
 	// Get cleaned HTML and text
 	contentHTML := cleaner.GetCleanHTML(contentClone)
 	textContent := cleaner.GetCleanText(contentClone)
@@ -157,18 +162,19 @@ func (e *Extractor) extractFromDocument(doc *goquery.Document, baseURL string) (
 	excerpt := dom.GetExcerpt(textContent, 200)
 
 	return &Article{
-		Title:       title,
-		Content:     contentHTML,
-		TextContent: textContent,
-		Excerpt:     excerpt,
-		Author:      author,
-		SiteName:    siteName,
-		PublishedAt: publishedAt,
-		LeadImage:   leadImage,
-		URL:         baseURL,
-		WordCount:   wordCount,
-		Score:       topCandidate.GetScore(),
-		Confidence:  confidence,
+		Title:        title,
+		Content:      contentHTML,
+		TextContent:  textContent,
+		Excerpt:      excerpt,
+		Author:       author,
+		SiteName:     siteName,
+		PublishedAt:  publishedAt,
+		LeadImage:    leadImage,
+		InlineImages: inlineImages,
+		URL:          baseURL,
+		WordCount:    wordCount,
+		Score:        topCandidate.GetScore(),
+		Confidence:   confidence,
 	}, nil
 }
 
@@ -263,18 +269,15 @@ func (e *Extractor) extractLeadImage(doc *goquery.Document, baseURL string) *Ima
 			return
 		}
 
-		src, _ := sel.Attr("src")
-		if src == "" {
-			// Try data-src for lazy-loaded images
-			src, _ = sel.Attr("data-src")
-		}
+		src := imageSrc(sel)
 		if src == "" {
 			return
 		}
 
 		img := &Image{
-			URL: src,
-			Alt: sel.AttrOr("alt", ""),
+			URL:     src,
+			Alt:     sel.AttrOr("alt", ""),
+			Caption: inferCaption(sel),
 		}
 
 		// Get dimensions
@@ -292,6 +295,124 @@ func (e *Extractor) extractLeadImage(doc *goquery.Document, baseURL string) *Ima
 	})
 
 	return leadImage
+}
+
+// extractInlineImages collects every image embedded in the article body.
+// Captions are paired from <figcaption> within the same <figure>, falling
+// back to the WordPress / Substack convention of an italic sibling line
+// (<em>, <i>, <small>, or <p class~="caption">) immediately after the <img>.
+// URLs already absolute when the caller ran ConvertRelativeURLs on the
+// selection. Output order matches document order; identical URLs are
+// emitted only once.
+func extractInlineImages(sel *goquery.Selection) []*Image {
+	var out []*Image
+	seen := make(map[string]bool)
+
+	emit := func(img *Image) {
+		if img == nil || img.URL == "" || seen[img.URL] {
+			return
+		}
+		seen[img.URL] = true
+		out = append(out, img)
+	}
+
+	sel.Find("img").Each(func(_ int, imgSel *goquery.Selection) {
+		src := imageSrc(imgSel)
+		if src == "" {
+			return
+		}
+
+		img := &Image{
+			URL: src,
+			Alt: imgSel.AttrOr("alt", ""),
+		}
+		if w := imgSel.AttrOr("width", ""); w != "" {
+			img.Width = parseInt(w)
+		}
+		if h := imgSel.AttrOr("height", ""); h != "" {
+			img.Height = parseInt(h)
+		}
+		img.Caption = inferCaption(imgSel)
+		emit(img)
+	})
+
+	return out
+}
+
+// imageSrc returns the best-effort source URL for an <img>, falling through
+// common lazy-load attributes and the first entry of a srcset when src is
+// missing.
+func imageSrc(sel *goquery.Selection) string {
+	for _, attr := range []string{"src", "data-src", "data-lazy-src", "data-original"} {
+		if v, _ := sel.Attr(attr); strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	if srcset, _ := sel.Attr("srcset"); strings.TrimSpace(srcset) != "" {
+		first := strings.SplitN(srcset, ",", 2)[0]
+		fields := strings.Fields(strings.TrimSpace(first))
+		if len(fields) > 0 {
+			return fields[0]
+		}
+	}
+	return ""
+}
+
+// inferCaption finds a visible caption for an <img>.
+//
+// Priority order:
+//  1. <figcaption> within the nearest enclosing <figure>
+//  2. The first italic-style sibling immediately following the image
+//     (<em>, <i>, <small>) — the WordPress / Substack convention
+//  3. A sibling element whose class name contains "caption"
+//  4. A <p> sibling whose only child is <em>/<i> (e.g. <p><em>...</em></p>)
+//
+// Returns "" when nothing fits — callers fall back to alt text if they want.
+func inferCaption(img *goquery.Selection) string {
+	// 1. <figure><figcaption>
+	if fig := img.Closest("figure"); fig.Length() > 0 {
+		if cap := fig.Find("figcaption").First(); cap.Length() > 0 {
+			if t := strings.TrimSpace(cap.Text()); t != "" {
+				return t
+			}
+		}
+	}
+
+	// Walk forward through siblings until we hit a substantive paragraph
+	// (which signals "back to article body, no caption"). We cap at two
+	// siblings so we don't reach across the layout.
+	next := img.Next()
+	for i := 0; i < 2 && next.Length() > 0; i++ {
+		tag := strings.ToLower(goquery.NodeName(next))
+		text := strings.TrimSpace(next.Text())
+
+		switch tag {
+		case "em", "i", "small":
+			if text != "" {
+				return text
+			}
+		}
+
+		// class="...caption..." on any wrapper
+		if class, _ := next.Attr("class"); class != "" &&
+			strings.Contains(strings.ToLower(class), "caption") && text != "" {
+			return text
+		}
+
+		// <p><em>...</em></p> pattern
+		if tag == "p" && text != "" {
+			emText := strings.TrimSpace(next.Find("em, i").First().Text())
+			if emText != "" && emText == text {
+				return text
+			}
+			// A full-paragraph of prose breaks the caption hunt.
+			break
+		}
+
+		next = next.Next()
+	}
+
+	return ""
 }
 
 // calculateConfidence calculates a confidence score for the extraction.

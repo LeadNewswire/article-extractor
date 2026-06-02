@@ -30,6 +30,12 @@ type Article struct {
 	// LeadImage is the main article image
 	LeadImage *Image `json:"leadImage,omitempty"`
 
+	// InlineImages is the ordered list of images embedded in the article body.
+	// URLs are absolute when a baseURL was provided. Captured for downstream
+	// reference and analysis; not deduplicated against LeadImage (a consumer
+	// that wants distinct lists can compare URLs).
+	InlineImages []*Image `json:"inlineImages,omitempty"`
+
 	// URL is the source URL
 	URL string `json:"url,omitempty"`
 
@@ -56,4 +62,9 @@ type Image struct {
 
 	// Alt is the alternative text
 	Alt string `json:"alt,omitempty"`
+
+	// Caption is the visible caption associated with the image (e.g. the
+	// content of an accompanying <figcaption> or an italic line that
+	// immediately follows). Empty when no caption could be inferred.
+	Caption string `json:"caption,omitempty"`
 }
